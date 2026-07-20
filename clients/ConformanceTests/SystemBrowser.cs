@@ -1,178 +1,133 @@
-﻿using IdentityModel.OidcClient.Browser;
+using IdentityModel.OidcClient.Browser;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using System;
+using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace IdentityModel.OidcClient
+namespace ConformanceTests;
+
+internal sealed class SystemBrowser : IBrowser
 {
-    public class SystemBrowser : IBrowser
+    private readonly Uri _redirectUri;
+    private readonly Action<string> _openBrowser;
+
+    public SystemBrowser(Uri redirectUri, Action<string>? openBrowser = null)
     {
-        private readonly int _port;
-        private readonly string _path;
+        _redirectUri = redirectUri;
+        _openBrowser = openBrowser ?? OpenBrowser;
+    }
 
-        public SystemBrowser(int port, string path = null)
+    public async Task<BrowserResult> InvokeAsync(BrowserOptions options, CancellationToken cancellationToken)
+    {
+        await using var listener = new LoopbackHttpListener(_redirectUri);
+        _openBrowser(options.StartUrl);
+
+        try
         {
-            _port = port;
-            _path = path;
+            var response = await listener.WaitForCallbackAsync(TimeSpan.FromMinutes(5), cancellationToken);
+            return string.IsNullOrWhiteSpace(response)
+                ? new BrowserResult { ResultType = BrowserResultType.UnknownError, Error = "Empty response." }
+                : new BrowserResult { Response = response, ResultType = BrowserResultType.Success };
         }
-
-        public async Task<BrowserResult> InvokeAsync(BrowserOptions options, CancellationToken cancellationToken)
+        catch (OperationCanceledException exception)
         {
-            using (var listener = new LoopbackHttpListener(_port, _path))
-            {
-                OpenBrowser(options.StartUrl);
-
-                try
-                {
-                    var result = await listener.WaitForCallbackAsync();
-                    if (String.IsNullOrWhiteSpace(result))
-                    {
-                        return new BrowserResult { ResultType = BrowserResultType.UnknownError, Error = "Empty response." };
-                    }
-
-                    return new BrowserResult { Response = result, ResultType = BrowserResultType.Success };
-                }
-                catch (TaskCanceledException ex)
-                {
-                    return new BrowserResult { ResultType = BrowserResultType.Timeout, Error = ex.Message };
-                }
-                catch (Exception ex)
-                {
-                    return new BrowserResult { ResultType = BrowserResultType.UnknownError, Error = ex.Message };
-                }
-            }
+            return new BrowserResult { ResultType = BrowserResultType.Timeout, Error = exception.Message };
         }
-
-        public static void OpenBrowser(string url)
+        catch (TimeoutException exception)
         {
-            try
-            {
-                Process.Start(url);
-            }
-            catch
-            {
-                // hack because of this: https://github.com/dotnet/corefx/issues/10361
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    url = url.Replace("&", "^&");
-                    Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    Process.Start("xdg-open", url);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    Process.Start("open", url);
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            return new BrowserResult { ResultType = BrowserResultType.Timeout, Error = exception.Message };
+        }
+        catch (Exception exception)
+        {
+            return new BrowserResult { ResultType = BrowserResultType.UnknownError, Error = exception.Message };
         }
     }
 
-    public class LoopbackHttpListener : IDisposable
+    private static void OpenBrowser(string url)
     {
-        const int DefaultTimeout = 60 * 5; // 5 mins (in seconds)
-
-        IWebHost _host;
-        TaskCompletionSource<string> _source = new TaskCompletionSource<string>();
-        string _url;
-
-        public string Url => _url;
-
-        public LoopbackHttpListener(int port, string path = null)
+        Process.Start(new ProcessStartInfo
         {
-            path = path ?? String.Empty;
-            if (path.StartsWith("/")) path = path.Substring(1);
+            FileName = url,
+            UseShellExecute = true
+        });
+    }
+}
 
-            _url = $"http://127.0.0.1:{port}/{path}";
+internal sealed class LoopbackHttpListener : IAsyncDisposable
+{
+    private readonly Uri _redirectUri;
+    private readonly IHost _host;
+    private readonly TaskCompletionSource<string> _source =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            _host = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls(_url)
-                .Configure(Configure)
-                .Build();
-            _host.Start();
+    public LoopbackHttpListener(Uri redirectUri)
+    {
+        if (!redirectUri.IsLoopback || redirectUri.Scheme != Uri.UriSchemeHttp)
+        {
+            throw new ArgumentException("The redirect URI must use HTTP on a loopback address.", nameof(redirectUri));
         }
 
-        public void Dispose()
-        {
-            Task.Run(async () =>
+        _redirectUri = redirectUri;
+        _host = new HostBuilder()
+            .ConfigureWebHost(builder =>
             {
-                await Task.Delay(500);
-                _host.Dispose();
-            });
-        }
+                builder.UseKestrel();
+                builder.UseUrls($"{redirectUri.Scheme}://{redirectUri.Authority}");
+                builder.Configure(Configure);
+            })
+            .Build();
+        _host.Start();
+    }
 
-        void Configure(IApplicationBuilder app)
+    public Task<string> WaitForCallbackAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        return _source.Task.WaitAsync(timeout, cancellationToken);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _host.StopAsync();
+        _host.Dispose();
+    }
+
+    private void Configure(IApplicationBuilder app)
+    {
+        app.Run(async context =>
         {
-            app.Run(async ctx =>
+            if (!string.Equals(context.Request.Path, _redirectUri.AbsolutePath, StringComparison.Ordinal))
             {
-                if (ctx.Request.Method == "GET")
-                {
-                    SetResult(ctx.Request.QueryString.Value, ctx);
-                }
-                else if (ctx.Request.Method == "POST")
-                {
-                    if (!ctx.Request.ContentType.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
-                    {
-                        ctx.Response.StatusCode = 415;
-                    }
-                    else
-                    {
-                        using (var sr = new StreamReader(ctx.Request.Body, Encoding.UTF8))
-                        {
-                            var body = await sr.ReadToEndAsync();
-                            SetResult(body, ctx);
-                        }
-                    }
-                }
-                else
-                {
-                    ctx.Response.StatusCode = 405;
-                }
-            });
-        }
-
-        private void SetResult(string value, HttpContext ctx)
-        {
-            try
-            {
-                ctx.Response.StatusCode = 200;
-                ctx.Response.ContentType = "text/html";
-                ctx.Response.WriteAsync("<h1>You can now return to the application.</h1>");
-                ctx.Response.Body.Flush();
-
-                _source.TrySetResult(value);
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
             }
-            catch
+
+            string callback;
+            if (HttpMethods.IsGet(context.Request.Method))
             {
-                ctx.Response.StatusCode = 400;
-                ctx.Response.ContentType = "text/html";
-                ctx.Response.WriteAsync("<h1>Invalid request.</h1>");
-                ctx.Response.Body.Flush();
+                callback = context.Request.QueryString.Value ?? string.Empty;
             }
-        }
-
-        public Task<string> WaitForCallbackAsync(int timeoutInSeconds = DefaultTimeout)
-        {
-            Task.Run(async () =>
+            else if (HttpMethods.IsPost(context.Request.Method))
             {
-                await Task.Delay(timeoutInSeconds * 1000);
-                _source.TrySetCanceled();
-            });
+                if (!context.Request.HasFormContentType)
+                {
+                    context.Response.StatusCode = StatusCodes.Status415UnsupportedMediaType;
+                    return;
+                }
 
-            return _source.Task;
-        }
+                using var reader = new StreamReader(context.Request.Body, Encoding.UTF8);
+                callback = await reader.ReadToEndAsync(context.RequestAborted);
+            }
+            else
+            {
+                context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+                return;
+            }
+
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "text/html; charset=UTF-8";
+            await context.Response.WriteAsync("<h1>You can now return to the application.</h1>", context.RequestAborted);
+            _source.TrySetResult(callback);
+        });
     }
 }

@@ -135,38 +135,63 @@ namespace IdentityModel.OidcClient
 
                 foreach (var webKey in options.ProviderInformation.KeySet.Keys)
                 {
+                    // Encryption keys and keys intended for other uses are not candidates for
+                    // identity token signature validation.
+                    if (webKey.Use != "sig" && webKey.Use != null)
+                    {
+                        logger.LogDebug("Key with kid: {kid} is not a signing key and was ignored", webKey.Kid ?? "not set");
+                        continue;
+                    }
+
                     if (webKey.E.IsPresent() && webKey.N.IsPresent())
                     {
-                        // only add keys used for signatures
-                        if (webKey.Use == "sig" || webKey.Use == null)
-                        {
-                            var e = Base64Url.Decode(webKey.E);
-                            var n = Base64Url.Decode(webKey.N);
+                        var e = Base64Url.Decode(webKey.E);
+                        var n = Base64Url.Decode(webKey.N);
 
-                            var key = new RsaSecurityKey(new RSAParameters { Exponent = e, Modulus = n });
+                        var key = new RsaSecurityKey(new RSAParameters { Exponent = e, Modulus = n });
+                        key.KeyId = webKey.Kid;
+
+                        keys.Add(key);
+
+                        logger.LogDebug("Added signing key with kid: {kid}", key?.KeyId ?? "not set");
+                    }
+                    else if (webKey.X.IsPresent() && webKey.Y.IsPresent() && webKey.Crv.IsPresent())
+                    {
+                        if (!TryGetCurveFromCrvValue(webKey.Crv, out var curve))
+                        {
+                            logger.LogDebug(
+                                "Signing key with kid: {kid} uses unsupported curve {curve} and was ignored",
+                                webKey.Kid ?? "not set",
+                                webKey.Crv);
+                            continue;
+                        }
+
+                        try
+                        {
+                            var ec = ECDsa.Create(new ECParameters
+                            {
+                                Curve = curve,
+                                Q = new ECPoint
+                                {
+                                    X = Base64Url.Decode(webKey.X),
+                                    Y = Base64Url.Decode(webKey.Y)
+                                }
+                            });
+
+                            var key = new ECDsaSecurityKey(ec);
                             key.KeyId = webKey.Kid;
 
                             keys.Add(key);
 
                             logger.LogDebug("Added signing key with kid: {kid}", key?.KeyId ?? "not set");
                         }
-                    }
-                    else if (webKey.X.IsPresent() && webKey.Y.IsPresent() && webKey.Crv.IsPresent())
-                    {
-                        var ec = ECDsa.Create(new ECParameters
+                        catch (Exception ex) when (ex is ArgumentException or FormatException or CryptographicException or PlatformNotSupportedException)
                         {
-                            Curve = GetCurveFromCrvValue(webKey.Crv),
-                            Q = new ECPoint
-                            {
-                                X = Base64Url.Decode(webKey.X),
-                                Y = Base64Url.Decode(webKey.Y)
-                            }
-                        });
-
-                        var key = new ECDsaSecurityKey(ec);
-                        key.KeyId = webKey.Kid;
-
-                        keys.Add(key);
+                            logger.LogWarning(
+                                ex,
+                                "Signing key with kid: {kid} could not be materialized and was ignored",
+                                webKey.Kid ?? "not set");
+                        }
                     }
                     else
                     {
@@ -203,18 +228,22 @@ namespace IdentityModel.OidcClient
             return null;
         }
 
-        internal static ECCurve GetCurveFromCrvValue(string crv)
+        internal static bool TryGetCurveFromCrvValue(string crv, out ECCurve curve)
         {
             switch (crv)
             {
                 case JsonWebKeyECTypes.P256:
-                    return ECCurve.NamedCurves.nistP256;
+                    curve = ECCurve.NamedCurves.nistP256;
+                    return true;
                 case JsonWebKeyECTypes.P384:
-                    return ECCurve.NamedCurves.nistP384;
+                    curve = ECCurve.NamedCurves.nistP384;
+                    return true;
                 case JsonWebKeyECTypes.P521:
-                    return ECCurve.NamedCurves.nistP521;
+                    curve = ECCurve.NamedCurves.nistP521;
+                    return true;
                 default:
-                    throw new InvalidOperationException($"Unsupported curve type of {crv}");
+                    curve = default;
+                    return false;
             }
         }
     }

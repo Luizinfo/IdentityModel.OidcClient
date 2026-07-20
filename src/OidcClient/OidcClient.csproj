@@ -1,16 +1,23 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>IdentityModel.OidcClient</RootNamespace>
     <AssemblyName>IdentityModel.OidcClient</AssemblyName>
 
-    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
 
-    <PackageId>IdentityModel.OidcClient</PackageId>
-    <PackageTags>OAuth2;OAuth 2.0;OpenID Connect;Security;Identity;IdentityServer</PackageTags>
-    <Description>RFC8252 compliant and certified OpenID Connect and OAuth 2.0 client library for native applications</Description>
-    <Authors>Dominick Baier;Brock Allen</Authors>
+    <PackageId>ZinfoFramework.IdentityModel.OidcClient</PackageId>
+    <Version>10.0.0</Version>
+    <MinVerVersionOverride>10.0.0</MinVerVersionOverride>
+    <PackageTags>ZinfoFramework;OAuth2;OAuth 2.0;OpenID Connect;Security;Identity;Native Applications</PackageTags>
+    <Description>ZinfoFramework's independently maintained continuation of the OpenID Connect and OAuth 2.0 client library for native applications.</Description>
+    <PackageReleaseNotes>Independent ZinfoFramework continuation targeting .NET 10 while preserving the historical IdentityModel.OidcClient API and assembly.</PackageReleaseNotes>
+    <Authors>Luiz Antonio</Authors>
+    <Copyright>Copyright Dominick Baier &amp; Brock Allen</Copyright>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Luizinfo/IdentityModel.OidcClient.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Luizinfo/IdentityModel.OidcClient</PackageProjectUrl>
     <PackageIcon>icon.jpg</PackageIcon>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,7 +34,7 @@
     <DebugType>embedded</DebugType>
 
     <!-- Enable Trimming Warnings to allow consumers to publish as trimmed -->
-    <IsTrimmable Condition="'$(TargetFramework)' == 'net6.0'">true</IsTrimmable>
+    <IsTrimmable>true</IsTrimmable>
 
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">True</ContinuousIntegrationBuild>
 
@@ -39,19 +46,17 @@
    <ItemGroup>
     <None Include="../../icon.jpg" Pack="true" Visible="false" PackagePath="" />
     <None Include="README.md" Pack="true" PackagePath=""/>
+    <None Include="../../LICENSE" Pack="true" PackagePath="" />
+    <None Include="../../NOTICE.md" Pack="true" PackagePath="" />
+    <None Include="../../CHANGELOG.md" Pack="true" PackagePath="" />
 </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="IdentityModel" Version="7.0.0" />
-    <PackageReference Include="minver" Version="4.3.0" PrivateAssets="All" />
+    <PackageReference Include="ZinfoFramework.IdentityModel" Version="[10.0.0]" />
+    <PackageReference Include="minver" Version="5.0.0" PrivateAssets="All" />
     
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
-
-  <!--Conditional Package references -->
-  <ItemGroup Condition="'$(TargetFramework)' != 'net6.0'">
-    <PackageReference Include="System.Text.Json" Version="8.0.0" />
-  </ItemGroup>   
 
 </Project>

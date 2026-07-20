@@ -3,6 +3,7 @@
 
 using System;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +17,7 @@ static class DPoPServiceCollectionExtensions
 
         services.AddTransient<DPoPJwtBearerEvents>();
         services.AddTransient<DPoPProofValidator>();
+        services.AddDataProtection().UseEphemeralDataProtectionProvider();
         services.AddDistributedMemoryCache();
         services.AddTransient<IReplayCache, DefaultReplayCache>();
 

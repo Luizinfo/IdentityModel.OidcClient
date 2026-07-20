@@ -1,53 +1,23 @@
-## About IdentityModel.OidcClient
-IdentityModel.OidcClient is an OpenID Connect (OIDC) client library for native
-applications. It provides
-- Types that describe OIDC requests and responses
-- Low level methods to construct protocol state and handle responses
-- Higher level methods for 
-   - Logging in
-   - Logging out
-   - Retrieving userinfo
-   - Refreshing tokens
+# ZinfoFramework.IdentityModel.OidcClient
 
-## Samples
-IdentityModel.OidcClient targets .NET Standard, making it suitable for .NET and .NET
-Framework. It can be used to build OIDC native clients with a variety of .NET UI tools.
-The [samples repository](https://github.com/IdentityModel/IdentityModel.OidcClient.Samples)
-shows how to use it in 
-- .NET MAUI
-- WPF with the system browser
-- WPF with an embedded browser
-- WinForms with an embedded browser
-- Cross Platform Console Applications (relies on kestrel for processing the callback)
-- Windows Console Applications (relies on an HttpListener - a wrapper around the windows HTTP.sys driver)
-- Windows Console Applications using custom uri schemes
+> Independent ZinfoFramework continuation maintained by Luiz Antonio; not the upstream IdentityModel project and not affiliated with Duende Software.
 
-## Documentation 
+This `net10.0` package supplies the OpenID Connect client primitives and high-level login, logout, user-info, and token-refresh flows for native applications.
 
-More documentation is available
-[here](https://identitymodel.readthedocs.io/en/latest/native/overview.html).
+| Historical package ID | Current package ID |
+| --- | --- |
+| `IdentityModel.OidcClient` | `ZinfoFramework.IdentityModel.OidcClient` |
 
+```shell
+dotnet add package ZinfoFramework.IdentityModel.OidcClient --version 10.0.0
+```
 
-## Standards and Certification
-IdentityModel.OidcClient is a [certified](http://openid.net/certification/) OpenID Connect
-relying party implementation, and implements [RFC 8252](https://tools.ietf.org/html/rfc8252/),
-"OAuth 2.0 for native Applications".
+Migration requires changing the package reference from `IdentityModel.OidcClient` to `ZinfoFramework.IdentityModel.OidcClient` and the base dependency from `IdentityModel` to `ZinfoFramework.IdentityModel`. Namespaces and the `IdentityModel.OidcClient` assembly name are preserved; do not rename existing `using IdentityModel.OidcClient...` directives.
 
-![openid_certified](https://cloud.githubusercontent.com/assets/1454075/7611268/4d19de32-f97b-11e4-895b-31b2455a7ca6.png)
+Related packages: [DPoP](https://www.nuget.org/packages/ZinfoFramework.IdentityModel.OidcClient.DPoP) and [IdentityTokenValidator](https://www.nuget.org/packages/ZinfoFramework.IdentityModel.OidcClient.IdentityTokenValidator).
 
+The historical upstream Basic RP approval is evidence of conformance testing, not official OpenID Foundation certification of this independent package.
 
+[Project](https://github.com/Luizinfo/IdentityModel.OidcClient) · [License](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/LICENSE) · [Notice](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/NOTICE.md) · [Changelog](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/CHANGELOG.md) · [Security](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/SECURITY.md) · [Support](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/SUPPORT.md)
 
-
-## Related Packages
-
-- Library for claims-based identity, OAuth 2.0, and OpenID Connect: [IdentityModel](https://www.nuget.org/packages/IdentityModel)
-- Id token validator for IdentityModel.OidcClient based on the Microsoft JWT handler: [IdentityModel.OidcClient.IdentityTokenValidator](https://www.nuget.org/packages/IdentityModel.OidcClient.IdentityTokenValidator)
-- [DPoP](https://datatracker.ietf.org/doc/html/rfc9449) extensions for IdentityModel.OidcClient: [IdentityModel.OidcClient.DPoP ](https://www.nuget.org/packages/IdentityModel.OidcClient.DPoP)
-- Authentication handler for introspection tokens: [IdentityModel.AspNetCore.OAuth2Introspection](https://www.nuget.org/packages/IdentityModel.AspNetCore.OAuth2Introspection)
-
-## Feedback
-
-IdentityModel.OidcClient is released as open source under the 
-[Apache 2.0 license](https://github.com/IdentityModel/IdentityModel.OidcClient/blob/main/LICENSE). 
-Bug reports and contributions are welcome at 
-[the GitHub repository](https://github.com/IdentityModel/IdentityModel.OidcClient).
+Historical upstream: [IdentityModel/IdentityModel.OidcClient](https://github.com/IdentityModel/IdentityModel.OidcClient), by Dominick Baier, Brock Allen, and contributors.

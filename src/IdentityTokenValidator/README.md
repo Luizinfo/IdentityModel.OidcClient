@@ -1,22 +1,21 @@
-## About IdentityModel.OidcClient
-IdentityModel.OidcClient.IdentityTokenValidator validates ID tokens using Microsoft's
-[System.IdentityModel.Tokens.Jwt](https://www.nuget.org/packages/System.IdentityModel.Tokens.Jwt/)
-library. It is intended to be used with
-[IdentityModel.OidcClient](https://www.nuget.org/packages/IdentityModel.OidcClient/),
-which provides an abstraction for validation of ID tokens that this package implements.
-Distributing the ID token validator separately allows for greater control of the version
-of the Microsoft JWT handler and prevents certain dependency issues. 
+# ZinfoFramework.IdentityModel.OidcClient.IdentityTokenValidator
 
-## Related Packages
+> Independent ZinfoFramework continuation maintained by Luiz Antonio; not the upstream IdentityModel project and not affiliated with Duende Software.
 
-- Library for claims-based identity, OAuth 2.0, and OpenID Connect: [IdentityModel](https://www.nuget.org/packages/IdentityModel)
-- RFC8252 compliant and certified OpenID Connect and OAuth 2.0 client library for native applications: [IdentityModel.OidcClient](https://www.nuget.org/packages/IdentityModel.OidcClient)
-- Id token validator for IdentityModel.OidcClient based on the Microsoft JWT handler: [IdentityModel.OidcClient.IdentityTokenValidator](https://www.nuget.org/packages/IdentityModel.OidcClient.IdentityTokenValidator)
-- Authentication handler for introspection tokens: [IdentityModel.AspNetCore.OAuth2Introspection](https://www.nuget.org/packages/IdentityModel.AspNetCore.OAuth2Introspection)
+This `net10.0` package validates ID tokens for the OIDC client through Microsoft's `System.IdentityModel.Tokens.Jwt` handler.
 
-## Feedback
+| Historical package ID | Current package ID |
+| --- | --- |
+| `IdentityModel.OidcClient.IdentityTokenValidator` | `ZinfoFramework.IdentityModel.OidcClient.IdentityTokenValidator` |
 
-IdentityModel.OidcClient.IdentityTokenValidator is released as open source under the 
-[Apache 2.0 license](https://github.com/IdentityModel/IdentityModel.OidcClient/blob/main/LICENSE). 
-Bug reports and contributions are welcome at 
-[the GitHub repository](https://github.com/IdentityModel/IdentityModel.OidcClient).
+```shell
+dotnet add package ZinfoFramework.IdentityModel.OidcClient.IdentityTokenValidator --version 10.0.0
+```
+
+Change only the package reference during migration. The `IdentityModel.OidcClient` namespace and `IdentityModel.OidcClient.IdentityTokenValidator` assembly name are preserved. The package depends on `ZinfoFramework.IdentityModel.OidcClient` version `10.0.0`.
+
+Related packages: [OIDC client](https://www.nuget.org/packages/ZinfoFramework.IdentityModel.OidcClient) and [DPoP](https://www.nuget.org/packages/ZinfoFramework.IdentityModel.OidcClient.DPoP).
+
+[Project](https://github.com/Luizinfo/IdentityModel.OidcClient) · [License](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/LICENSE) · [Notice](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/NOTICE.md) · [Changelog](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/CHANGELOG.md) · [Security](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/SECURITY.md) · [Support](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/SUPPORT.md)
+
+Historical upstream: [IdentityModel/IdentityModel.OidcClient](https://github.com/IdentityModel/IdentityModel.OidcClient), by Dominick Baier, Brock Allen, and contributors.

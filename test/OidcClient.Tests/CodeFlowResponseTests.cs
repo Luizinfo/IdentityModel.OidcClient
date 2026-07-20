@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using FluentAssertions;
@@ -335,7 +335,7 @@ namespace IdentityModel.OidcClient.Tests
                 new NetworkHandler(JsonSerializer.Serialize(tokenResponse), HttpStatusCode.OK);
 
             Func<Task> act = async () => { await client.ProcessResponseAsync(url, state); };
-            act.Should().Throw<InvalidOperationException>()
+            (await act.Should().ThrowAsync<InvalidOperationException>())
                 .Where(e => e.Message.StartsWith("No IIdentityTokenValidator is configured"));
         }
 
@@ -510,7 +510,7 @@ namespace IdentityModel.OidcClient.Tests
             // Validate that the resulting PAR state is correct
             var startUrl = new Uri(state.StartUrl);
             var startUrlQueryParams = HttpUtility.ParseQueryString(startUrl.Query);
-            startUrlQueryParams.Should().HaveCount(2);
+            startUrlQueryParams.Count.Should().Be(2);
             startUrlQueryParams.GetValues("client_id").Single().Should().Be("client");
             startUrlQueryParams.GetValues("request_uri").Single().Should().Be(requestUri);
 
@@ -551,7 +551,7 @@ namespace IdentityModel.OidcClient.Tests
             // Validate that the resulting PAR state is correct
             var startUrl = new Uri(state.StartUrl);
             var startUrlQueryParams = HttpUtility.ParseQueryString(startUrl.Query);
-            startUrlQueryParams.Should().HaveCount(2);
+            startUrlQueryParams.Count.Should().Be(2);
             startUrlQueryParams.GetValues("client_id").Single().Should().Be("client");
             startUrlQueryParams.GetValues("request_uri").Single().Should().Be(requestUri);
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace DPoPTests;
 
-public class GenericHost
+public class GenericHost : IAsyncDisposable
 {
     public GenericHost(string baseAddress = "https://server")
     {
@@ -24,6 +24,7 @@ public class GenericHost
 
     protected readonly string _baseAddress;
     IServiceProvider _appServices = default!;
+    IHost _host = default!;
 
     public Assembly HostAssembly { get; set; } = default!;
     public bool IsDevelopment { get; set; } = default!;
@@ -77,9 +78,9 @@ public class GenericHost
             });
 
         // Build and start the IHost
-        var host = await hostBuilder.StartAsync();
+        _host = await hostBuilder.StartAsync();
 
-        Server = host.GetTestServer();
+        Server = _host.GetTestServer();
         HttpClient = Server.CreateClient();
     }
 
@@ -102,5 +103,17 @@ public class GenericHost
         _appServices = app.ApplicationServices;
             
         OnConfigure(app);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        HttpClient?.Dispose();
+        Server?.Dispose();
+
+        if (_host is not null)
+        {
+            await _host.StopAsync();
+            _host.Dispose();
+        }
     }
 }
