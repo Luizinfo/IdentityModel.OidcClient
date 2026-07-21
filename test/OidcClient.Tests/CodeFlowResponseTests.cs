@@ -57,6 +57,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"),
                 new Claim("auth_time", "123"));
@@ -122,6 +123,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -249,6 +251,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://{some_multi_tenant_name}", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -279,6 +282,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -516,6 +520,8 @@ namespace IdentityModel.OidcClient.Tests
 
             // Validate that the client authentication during the PAR request was correct
             var request = backChannelHandler.Request;
+            var requestParameters = HttpUtility.ParseQueryString(await request.Content.ReadAsStringAsync());
+            requestParameters.GetValues("nonce").Single().Should().Be(state.Nonce);
             request.Headers.Authorization.Should().NotBeNull();
             request.Headers.Authorization.Scheme.Should().Be("Basic");
             request.Headers.Authorization.Parameter.Should()
