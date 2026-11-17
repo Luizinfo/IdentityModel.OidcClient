@@ -56,7 +56,6 @@
     <PackageReference Include="minver" Version="5.0.0" PrivateAssets="All" />
     
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>
