@@ -25,6 +25,6 @@ Historical upstream: [IdentityModel/IdentityModel.OidcClient](https://github.com
 
 ## Build and pull-request validation
 
-Install the exact .NET SDK **10.0.401** selected by `global.json`. Run `./build.ps1` on Windows or `./build.sh` on Linux/macOS from the repository root. The default build compiles the solution, runs its tests, and creates local validation packages; it also validates trimming. CI installs the same SDK from `global.json` and checks Windows, Linux, and macOS. It runs for pull requests and correction/release branches without publishing packages.
+Install the exact .NET SDK **10.0.401** selected by `global.json`. Run `./build.ps1` on Windows or `./build.sh` on Linux/macOS from the repository root. The default build compiles the solution, runs its tests, and creates local validation packages; it also validates trimming. CI installs the same SDK from `global.json` and checks Windows, Linux, and macOS Intel (macos-26-intel). It runs for pull requests and correction/release branches without publishing packages.
 
 Unreleased build changes do not replace the existing NuGet release. A future publication requires a new package version and validation of the final artifacts.
