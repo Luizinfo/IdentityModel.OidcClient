@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -25,7 +25,7 @@ public class DPoPProofTokenFactory
     {
         _jwk = new JsonWebKey(proofKey);
 
-        if (_jwk.Alg.IsNullOrEmpty())
+        if (string.IsNullOrEmpty(_jwk.Alg))
         {
             throw new ArgumentException("alg must be set on proof key");
         }

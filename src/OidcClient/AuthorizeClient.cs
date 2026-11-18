@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using IdentityModel.Client;
@@ -100,6 +100,7 @@ namespace IdentityModel.OidcClient
             var state = new AuthorizeState
             {
                 State = _crypto.CreateState(_options.StateLength),
+                Nonce = _crypto.CreateState(_options.StateLength),
                 RedirectUri = _options.RedirectUri,
                 CodeVerifier = pkce.CodeVerifier,
             };
@@ -108,7 +109,7 @@ namespace IdentityModel.OidcClient
                 !_options.DisablePushedAuthorization)
             {
                 _logger.LogDebug("The IdentityProvider contains a pushed authorization request endpoint. Automatically pushing authorization parameters. Use DisablePushedAuthorization to opt out.");
-                var parResponse = await PushAuthorizationRequestAsync(state.State, pkce.CodeChallenge, frontChannelParameters);
+                var parResponse = await PushAuthorizationRequestAsync(state.State, state.Nonce, pkce.CodeChallenge, frontChannelParameters);
                 if(parResponse.IsError)
                 {
                     _logger.LogError("Failed to push authorization parameters");
@@ -121,7 +122,7 @@ namespace IdentityModel.OidcClient
             }
             else
             {
-                state.StartUrl = CreateAuthorizeUrl(state.State, pkce.CodeChallenge, frontChannelParameters);
+                state.StartUrl = CreateAuthorizeUrl(state.State, state.Nonce, pkce.CodeChallenge, frontChannelParameters);
             }
 
             _logger.LogDebug(LogSerializer.Serialize(state));
@@ -129,7 +130,7 @@ namespace IdentityModel.OidcClient
             return state;
         }
 
-        private async Task<PushedAuthorizationResponse> PushAuthorizationRequestAsync(string state, string codeChallenge, Parameters frontChannelParameters)
+        private async Task<PushedAuthorizationResponse> PushAuthorizationRequestAsync(string state, string nonce, string codeChallenge, Parameters frontChannelParameters)
         {
             var http = _options.CreateClient();
             var par = new PushedAuthorizationRequest
@@ -139,7 +140,7 @@ namespace IdentityModel.OidcClient
                 
                 ClientSecret = _options.ClientSecret,
                 ClientAssertion = await _options.GetClientAssertionAsync(),
-                Parameters = CreateAuthorizeParameters(state, codeChallenge, frontChannelParameters),
+                Parameters = CreateAuthorizeParameters(state, nonce, codeChallenge, frontChannelParameters),
             };
 
             if(par.ClientAssertion?.Value != null)
@@ -150,12 +151,12 @@ namespace IdentityModel.OidcClient
             return await http.PushAuthorizationAsync(par);
         }
 
-        internal string CreateAuthorizeUrl(string state, string codeChallenge,
+        internal string CreateAuthorizeUrl(string state, string nonce, string codeChallenge,
             Parameters frontChannelParameters)
         {
             _logger.LogTrace("CreateAuthorizeUrl");
 
-            var parameters = CreateAuthorizeParameters(state, codeChallenge, frontChannelParameters);
+            var parameters = CreateAuthorizeParameters(state, nonce, codeChallenge, frontChannelParameters);
             var request = new RequestUrl(_options.ProviderInformation.AuthorizeEndpoint);
 
             return request.Create(parameters);
@@ -187,6 +188,7 @@ namespace IdentityModel.OidcClient
 
         internal Parameters CreateAuthorizeParameters(
             string state,
+            string nonce,
             string codeChallenge,
             Parameters frontChannelParameters)
         {
@@ -196,6 +198,7 @@ namespace IdentityModel.OidcClient
             {
                 { OidcConstants.AuthorizeRequest.ResponseType, OidcConstants.ResponseTypes.Code },
                 { OidcConstants.AuthorizeRequest.State, state },
+                { OidcConstants.AuthorizeRequest.Nonce, nonce },
                 { OidcConstants.AuthorizeRequest.CodeChallenge, codeChallenge },
                 { OidcConstants.AuthorizeRequest.CodeChallengeMethod, OidcConstants.CodeChallengeMethods.Sha256 },
             };
@@ -227,6 +230,11 @@ namespace IdentityModel.OidcClient
             {
                 foreach (var entry in frontChannelParameters)
                 {
+                    if (string.Equals(entry.Key, OidcConstants.AuthorizeRequest.Nonce, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
                     parameters.Add(entry.Key, entry.Value);
                 }
             }

@@ -1,19 +1,21 @@
-## About IdentityModel.OidcClient
-IdentityModel.OidcClient.DPoP adds support for DPoP ([RFC
-9449](https://datatracker.ietf.org/doc/html/rfc9449)) to IdentityModel.OidcClient. DPoP
-sender-constrains access and refresh tokens to protect them against replay attacks, and is 
-often used by mobile and other native applications.
+# ZinfoFramework.IdentityModel.OidcClient.DPoP
 
-## Related Packages
+> Independent ZinfoFramework continuation maintained by Luiz Antonio; not the upstream IdentityModel project and not affiliated with Duende Software.
 
-- Library for claims-based identity, OAuth 2.0, and OpenID Connect: [IdentityModel](https://www.nuget.org/packages/IdentityModel)
-- RFC8252 compliant and certified OpenID Connect and OAuth 2.0 client library for native applications: [IdentityModel.OidcClient](https://www.nuget.org/packages/IdentityModel.OidcClient)
-- Id token validator for IdentityModel.OidcClient based on the Microsoft JWT handler: [IdentityModel.OidcClient.IdentityTokenValidator](https://www.nuget.org/packages/IdentityModel.OidcClient.IdentityTokenValidator)
-- Authentication handler for introspection tokens: [IdentityModel.AspNetCore.OAuth2Introspection](https://www.nuget.org/packages/IdentityModel.AspNetCore.OAuth2Introspection)
+This `net10.0` package adds DPoP ([RFC 9449](https://datatracker.ietf.org/doc/html/rfc9449)) support to the OIDC client and sender-constrains access and refresh tokens against replay.
 
-## Feedback
+| Historical package ID | Current package ID |
+| --- | --- |
+| `IdentityModel.OidcClient.DPoP` | `ZinfoFramework.IdentityModel.OidcClient.DPoP` |
 
-IdentityModel.OidcClient is released as open source under the 
-[Apache 2.0 license](https://github.com/IdentityModel/IdentityModel.OidcClient/blob/main/LICENSE). 
-Bug reports and contributions are welcome at 
-[the GitHub repository](https://github.com/IdentityModel/IdentityModel.OidcClient).
+```shell
+dotnet add package ZinfoFramework.IdentityModel.OidcClient.DPoP --version 10.0.0
+```
+
+Change only the package reference during migration. The `IdentityModel.OidcClient.DPoP` namespace and assembly name are preserved. The package depends on `ZinfoFramework.IdentityModel.OidcClient` and `ZinfoFramework.IdentityModel` version `10.0.0`.
+
+Related packages: [OIDC client](https://www.nuget.org/packages/ZinfoFramework.IdentityModel.OidcClient) and [IdentityTokenValidator](https://www.nuget.org/packages/ZinfoFramework.IdentityModel.OidcClient.IdentityTokenValidator).
+
+[Project](https://github.com/Luizinfo/IdentityModel.OidcClient) · [License](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/LICENSE) · [Notice](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/NOTICE.md) · [Changelog](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/CHANGELOG.md) · [Security](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/SECURITY.md) · [Support](https://github.com/Luizinfo/IdentityModel.OidcClient/blob/main/SUPPORT.md)
+
+Historical upstream: [IdentityModel/IdentityModel.OidcClient](https://github.com/IdentityModel/IdentityModel.OidcClient), by Dominick Baier, Brock Allen, and contributors.

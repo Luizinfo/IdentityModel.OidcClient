@@ -31,4 +31,9 @@ public class DPoPProofValidatonContext
     /// The access token
     /// </summary>
     public string AccessToken { get; set; }
+
+    /// <summary>
+    /// Overrides nonce validation for endpoints that choose the policy per client.
+    /// </summary>
+    public bool? ValidateNonce { get; set; }
 }

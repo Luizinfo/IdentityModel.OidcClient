@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using static IdentityModel.OidcConstants;
 
@@ -72,6 +73,14 @@ public class DPoPJwtBearerEvents : JwtBearerEvents
                 {
                     context.HttpContext.Items["DPoP-Nonce"] = result.ServerIssuedNonce;
                 }
+            }
+            else if (!TryGetConfirmationThumbprint(context, out var tokenThumbprint) ||
+                     !string.Equals(tokenThumbprint, result.JsonWebKeyThumbprint, System.StringComparison.Ordinal))
+            {
+                const string description = "DPoP proof key does not match the access token 'cnf.jkt' value.";
+                context.HttpContext.Items["DPoP-Error"] = OidcConstants.TokenErrors.InvalidDPoPProof;
+                context.HttpContext.Items["DPoP-ErrorDescription"] = description;
+                context.Fail(description);
             }
         }
         else if (dpopOptions.Mode == DPoPMode.DPoPAndBearer)
@@ -152,5 +161,26 @@ public class DPoPJwtBearerEvents : JwtBearerEvents
         }
 
         return Task.CompletedTask;
+    }
+
+    private static bool TryGetConfirmationThumbprint(TokenValidatedContext context, out string thumbprint)
+    {
+        thumbprint = null;
+        var confirmation = context.Principal?.FindFirst(JwtClaimTypes.Confirmation)?.Value;
+        if (string.IsNullOrWhiteSpace(confirmation))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(confirmation);
+            return document.RootElement.TryGetProperty(JwtClaimTypes.ConfirmationMethods.JwkThumbprint, out var value) &&
+                   !string.IsNullOrWhiteSpace(thumbprint = value.GetString());
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }

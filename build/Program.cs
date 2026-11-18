@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using static Bullseye.Targets;
@@ -8,12 +8,15 @@ namespace build
 {
     internal static class Program
     {
-        private const string packOutput = "./artifacts";
+        private const string packOutput = "./artifacts/packages";
+        private const string packageVersion = "10.0.0";
+        private const string nugetConfigEnvironmentVariable = "OIDCCLIENT_NUGET_CONFIG";
         private const string envVarMissing = " environment variable is missing. Aborting.";
 
         private static class Targets
         {
             public const string RestoreTools = "restore-tools";
+            public const string Restore = "restore";
             public const string CleanBuildOutput = "clean-build-output";
             public const string CleanPackOutput = "clean-pack-output";
             public const string Build = "build";
@@ -31,14 +34,19 @@ namespace build
                 Run("dotnet", "tool restore");
             });
 
-            Target(Targets.CleanBuildOutput, () =>
+            Target(Targets.Restore, () =>
+            {
+                Run("dotnet", $"restore --nologo{GetNuGetConfigArgument()}");
+            });
+
+            Target(Targets.CleanBuildOutput, DependsOn(Targets.Restore), () =>
             {
                 Run("dotnet", "clean -c Release -v m --nologo");
             });
 
             Target(Targets.Build, DependsOn(Targets.CleanBuildOutput), () =>
             {
-                Run("dotnet", "build -c Release --nologo");
+                Run("dotnet", "build -c Release --no-restore --nologo");
             });
 
             Target(Targets.Test, DependsOn(Targets.Build), () =>
@@ -56,9 +64,9 @@ namespace build
 
             Target(Targets.Pack, DependsOn(Targets.Build, Targets.CleanPackOutput), () =>
             {
-                Run("dotnet", $"pack ./src/OidcClient/OidcClient.csproj -c Release -o {Directory.CreateDirectory(packOutput).FullName} --no-build --nologo");
-                Run("dotnet", $"pack ./src/IdentityTokenValidator/IdentityTokenValidator.csproj -c Release -o {Directory.CreateDirectory(packOutput).FullName} --no-build --nologo");
-                Run("dotnet", $"pack ./src/DPoP/DPoP.csproj -c Release -o {Directory.CreateDirectory(packOutput).FullName} --no-build --nologo");
+                Run("dotnet", $"pack ./src/OidcClient/OidcClient.csproj -c Release -o {Directory.CreateDirectory(packOutput).FullName} --no-build --nologo -p:MinVerVersionOverride={packageVersion}");
+                Run("dotnet", $"pack ./src/IdentityTokenValidator/IdentityTokenValidator.csproj -c Release -o {Directory.CreateDirectory(packOutput).FullName} --no-build --nologo -p:MinVerVersionOverride={packageVersion}");
+                Run("dotnet", $"pack ./src/DPoP/DPoP.csproj -c Release -o {Directory.CreateDirectory(packOutput).FullName} --no-build --nologo -p:MinVerVersionOverride={packageVersion}");
             });
 
             Target(Targets.SignPackage, DependsOn(Targets.Pack, Targets.RestoreTools), () =>
@@ -66,9 +74,9 @@ namespace build
                 SignNuGet();
             });
 
-            Target(Targets.TrimmableAnalysis, () =>
+            Target(Targets.TrimmableAnalysis, DependsOn(Targets.Build), () =>
             {
-                Run("dotnet", "publish test/TrimmableAnalysis -c Release -r win-x64");
+                Run("dotnet", $"publish test/TrimmableAnalysis -c Release -r win-x64 --nologo{GetNuGetConfigArgument()}");
             });
 
             Target("default", DependsOn(Targets.Test, Targets.Pack, Targets.TrimmableAnalysis));
@@ -76,6 +84,12 @@ namespace build
             Target("sign", DependsOn(Targets.Test, Targets.SignPackage, Targets.TrimmableAnalysis));
 
             await RunTargetsAndExitAsync(args, ex => ex is SimpleExec.ExitCodeException || ex.Message.EndsWith(envVarMissing));
+        }
+
+        private static string GetNuGetConfigArgument()
+        {
+            var configFile = Environment.GetEnvironmentVariable(nugetConfigEnvironmentVariable);
+            return string.IsNullOrWhiteSpace(configFile) ? string.Empty : $" --configfile \"{configFile}\"";
         }
 
         private static void SignNuGet()

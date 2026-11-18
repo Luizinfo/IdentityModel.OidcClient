@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 namespace IdentityModel.OidcClient
@@ -23,6 +23,11 @@ namespace IdentityModel.OidcClient
         /// The state.
         /// </value>
         public string State { get; set; }
+
+        /// <summary>
+        /// Gets or sets the nonce used to bind the identity token to the authorization request.
+        /// </summary>
+        public string Nonce { get; set; }
 
         /// <summary>
         /// Gets or sets the code verifier.

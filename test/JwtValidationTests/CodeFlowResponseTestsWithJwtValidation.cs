@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using FluentAssertions;
@@ -49,6 +49,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -87,6 +88,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -138,6 +140,51 @@ namespace IdentityModel.OidcClient.Tests
             result.User.Claims.Skip(1).First().Value.Should().Be("Dominick");
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task Invalid_or_missing_nonce_should_fail_before_userinfo(bool includeInvalidNonce)
+        {
+            _options.LoadProfile = true;
+
+            var client = new OidcClient(_options);
+            var state = await client.PrepareLoginAsync();
+            var key = Crypto.CreateKey();
+            var claims = new List<Claim>
+            {
+                new Claim("at_hash", Crypto.HashData("token")),
+                new Claim("sub", "123")
+            };
+            if (includeInvalidNonce)
+            {
+                claims.Add(new Claim("nonce", state.Nonce + "-invalid"));
+            }
+
+            var tokenResponse = new Dictionary<string, object>
+            {
+                { "access_token", "token" },
+                { "expires_in", 300 },
+                { "id_token", Crypto.CreateJwt(key, "https://authority", "client", claims.ToArray()) }
+            };
+            var userInfoCalls = 0;
+            _options.ProviderInformation.KeySet = Crypto.CreateKeySet(key);
+            _options.BackchannelHandler = new NetworkHandler(request =>
+            {
+                if (request.RequestUri.AbsoluteUri.EndsWith("userinfo"))
+                {
+                    userInfoCalls++;
+                }
+
+                return JsonSerializer.Serialize(tokenResponse);
+            }, HttpStatusCode.OK);
+
+            var result = await client.ProcessResponseAsync($"?state={state.State}&code=bar", state);
+
+            result.IsError.Should().BeTrue();
+            result.Error.Should().Be("Error validating token response: Invalid nonce.");
+            userInfoCalls.Should().Be(0);
+        }
+
         [Fact]
         public async Task Valid_response_with_missing_signature_should_succeed()
         {
@@ -149,6 +196,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(null, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -219,6 +267,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -257,6 +306,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -292,6 +342,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://{some_multi_tenant_name}", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -324,6 +375,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -557,6 +609,72 @@ namespace IdentityModel.OidcClient.Tests
             result.Error.Should().Contain("unable_to_validate_token");
         }
 
+        [Fact]
+        public async Task Valid_response_with_unsupported_ec_signing_key_should_succeed()
+        {
+            var client = new OidcClient(_options);
+            var state = await client.PrepareLoginAsync();
+
+            var url = $"?state={state.State}&code=bar";
+            var key = Crypto.CreateKey();
+            var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
+                new Claim("at_hash", Crypto.HashData("token")),
+                new Claim("sub", "123"));
+
+            var tokenResponse = new Dictionary<string, object>
+            {
+                { "access_token", "token" },
+                { "expires_in", 300 },
+                { "id_token", idToken },
+                { "refresh_token", "refresh_token" }
+            };
+
+            _options.ProviderInformation.KeySet = Crypto.CreateKeySet(key);
+            _options.ProviderInformation.KeySet.Keys.Insert(0, CreateSecp256k1SigningKey());
+            _options.BackchannelHandler =
+                new NetworkHandler(JsonSerializer.Serialize(tokenResponse), HttpStatusCode.OK);
+
+            var result = await client.ProcessResponseAsync(url, state);
+
+            result.IsError.Should().BeFalse();
+            result.IdentityToken.Should().Be(idToken);
+        }
+
+        [Fact]
+        public async Task Token_without_matching_supported_signing_key_should_fail()
+        {
+            var client = new OidcClient(_options);
+            var state = await client.PrepareLoginAsync();
+
+            var url = $"?state={state.State}&code=bar";
+            var signingKey = Crypto.CreateKey();
+            signingKey.KeyId = "missing";
+            var idToken = Crypto.CreateJwt(signingKey, "https://authority", "client",
+                new Claim("at_hash", Crypto.HashData("token")),
+                new Claim("sub", "123"));
+
+            var tokenResponse = new Dictionary<string, object>
+            {
+                { "access_token", "token" },
+                { "expires_in", 300 },
+                { "id_token", idToken },
+                { "refresh_token", "refresh_token" }
+            };
+
+            var unrelatedKey = Crypto.CreateKey();
+            unrelatedKey.KeyId = "unrelated";
+            _options.ProviderInformation.KeySet = Crypto.CreateKeySet(unrelatedKey);
+            _options.ProviderInformation.KeySet.Keys.Insert(0, CreateSecp256k1SigningKey());
+            _options.BackchannelHandler =
+                new NetworkHandler(JsonSerializer.Serialize(tokenResponse), HttpStatusCode.OK);
+
+            var result = await client.ProcessResponseAsync(url, state);
+
+            result.IsError.Should().BeTrue();
+            result.Error.Should().Contain("invalid_signature");
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -568,6 +686,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("sub", "123"));
 
             var tokenResponse = new Dictionary<string, object>
@@ -610,6 +729,7 @@ namespace IdentityModel.OidcClient.Tests
             var url = $"?state={state.State}&code=bar";
             var key = Crypto.CreateKey();
             var idToken = Crypto.CreateJwt(key, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", "invalid"),
                 new Claim("sub", "123"));
 
@@ -663,6 +783,19 @@ namespace IdentityModel.OidcClient.Tests
 
             result.IsError.Should().BeTrue();
             result.Error.Should().Be("Error validating token response: Identity token uses invalid algorithm: RS256");
+        }
+
+        private static JsonWebKey CreateSecp256k1SigningKey()
+        {
+            return new JsonWebKey
+            {
+                Kty = "EC",
+                Use = "sig",
+                Crv = "secp256k1",
+                Kid = "unsupported-secp256k1",
+                X = "CmJBGC3vHc7Oo4nMxBXkals2M7cXxbE9r1tYAqNjq3w",
+                Y = "7gYR7bZa7KByOeC9anACxHdurwRJFde1xXy6AH0M7Dc"
+            };
         }
     }
 }

@@ -24,13 +24,10 @@ public class ConfigureJwtBearerOptions : IPostConfigureOptions<JwtBearerOptions>
             {
                 throw new Exception("EventsType on JwtBearerOptions must derive from DPoPJwtBearerEvents to work with the DPoP support.");
             }
-            if (options.Events != null && !typeof(DPoPJwtBearerEvents).IsAssignableFrom(options.Events.GetType()))
+
+            if (options.EventsType == null)
             {
-                throw new Exception("Events on JwtBearerOptions must derive from DPoPJwtBearerEvents to work with the DPoP support.");
-            }
-            
-            if (options.Events == null && options.EventsType == null)
-            {
+                options.Events = null;
                 options.EventsType = typeof(DPoPJwtBearerEvents);
             }
         }

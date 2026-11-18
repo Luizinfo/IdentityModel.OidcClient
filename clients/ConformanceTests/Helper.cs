@@ -1,211 +1,121 @@
-﻿using IdentityModel.Client;
+using IdentityModel;
+using IdentityModel.Client;
 using IdentityModel.OidcClient;
-using Newtonsoft.Json;
-using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
-namespace ConformanceTests
+namespace ConformanceTests;
+
+internal sealed class Helper
 {
-    public class Helper
+    private readonly ConformanceRunnerOptions _runnerOptions;
+
+    public Helper(ConformanceRunnerOptions runnerOptions)
     {
-        string _discoEndpoint = "https://rp.certification.openid.net:8090/{0}/{1}/.well-known/openid-configuration";
+        _runnerOptions = runnerOptions;
+    }
 
-        public string RpId { get; private set; }
-        public string TestName { get; private set; }
-
-        public Helper(string rpId, string testName)
+    public async Task<OidcClientOptions> CreateOidcClientOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        using var httpClient = new HttpClient();
+        var discovery = await httpClient.GetDiscoveryDocumentAsync(new DiscoveryDocumentRequest
         {
-            Console.WriteLine($"Starting test '{testName}'");
-
-            RpId = rpId;
-            TestName = testName;
-        }
-
-        public string GetLogUrl()
-        {
-            return $"https://rp.certification.openid.net:8080/log/{RpId}/{TestName}";
-        }
-
-        public async Task<string> GetLog()
-        {
-            var client = new HttpClient();
-            var log = await client.GetStringAsync(GetLogUrl());
-
-            return log;
-        }
-
-        public async Task ResetKeyRotation()
-        {
-            var url = $"https://rp.certification.openid.net:8090/{RpId}/rp-key-rotation-op-sign-key-native/reset";
-
-            var client = new HttpClient();
-            var response = await client.GetAsync(url);
-
-            Console.WriteLine("Reset key rotation: " + response.StatusCode);
-        }
-
-        public void ShowResult(LoginResult result)
-        {
-            if (result.IsError)
+            Address = _runnerOptions.DiscoveryUrl,
+            Policy =
             {
-                Console.WriteLine("Error!");
-                Console.WriteLine(result.Error);
+                // This preliminary request is only used to locate dynamic registration.
+                // The OidcClient performs discovery again with its normal validation policy.
+                ValidateEndpoints = false,
+                ValidateIssuerName = false
             }
-            else
+        }, cancellationToken);
+
+        if (discovery.IsError)
+        {
+            throw new InvalidOperationException($"Unable to load the exported discoveryurl: {discovery.Error}");
+        }
+
+        var clientId = _runnerOptions.ClientId;
+        var clientSecret = _runnerOptions.ClientSecret;
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            if (string.IsNullOrWhiteSpace(discovery.RegistrationEndpoint))
             {
-                Console.WriteLine("Success!\n");
-                foreach (var claim in result.User.Claims)
-                {
-                    Console.WriteLine($"{claim.Type}: {claim.Value}");
-                }
-
-                if (!string.IsNullOrEmpty(result.IdentityToken))
-                {
-                    Console.WriteLine($"\nIdentity token:\n{result.IdentityToken}");
-                }
-                if (!string.IsNullOrEmpty(result.AccessToken))
-                {
-                    Console.WriteLine($"\nAccess token:\n{result.AccessToken}");
-                }
-                if (!string.IsNullOrEmpty(result.RefreshToken))
-                {
-                    Console.WriteLine($"\nRefresh token:\n{result.RefreshToken}");
-                }
-
-                Console.WriteLine($"Logging Raw TokenResponse...");
-                var values = JsonConvert.DeserializeObject<Dictionary<string, string>>(result.TokenResponse.Raw);
-                foreach (var item in values)
-                {
-                    Console.WriteLine($"{item.Key}: {item.Value}");
-                }
-
+                throw new InvalidOperationException("The test does not expose dynamic registration. Supply --client-id and, when applicable, --client-secret.");
             }
+
+            var registration = await RegisterClientAsync(
+                httpClient,
+                discovery.RegistrationEndpoint,
+                cancellationToken);
+            clientId = registration.ClientId;
+            clientSecret = registration.ClientSecret;
         }
 
-        public async Task<OidcClientOptions> RegisterForCode()
+        var loggerFactory = LoggerFactory.Create(builder =>
         {
-            var disco = await GetDiscoveryDocument();
-            var registration = await RegisterClientForCode(disco.RegistrationEndpoint, "http://localhost:7890");
+            builder.SetMinimumLevel(LogLevel.Information);
+            builder.AddSimpleConsole(options => options.SingleLine = true);
+        });
 
-            var serilog = new LoggerConfiguration()
-                .MinimumLevel.Verbose()
-                .Enrich.FromLogContext()
-                .WriteTo.LiterateConsole(outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message}{NewLine}{Exception}{NewLine}")
-                .CreateLogger();
-
-            var options = new OidcClientOptions
-            {
-                Authority = disco.Issuer,
-                RedirectUri = "http://localhost:7890",
-                ClientId = registration.ClientId,
-                ClientSecret = registration.ClientSecret,
-                TokenClientCredentialStyle = ClientCredentialStyle.AuthorizationHeader,
-                Browser = new SystemBrowser(port: 7890),
-                FilterClaims = false
-            };
-
-            options.LoggerFactory.AddSerilog(serilog);
-
-            options.Policy.RequireAccessTokenHash = false;
-            options.Policy.Discovery.ValidateEndpoints = false;
-
-            return options;
-        }
-
-        public async Task<OidcClientOptions> RegisterForHybrid()
+        return new OidcClientOptions
         {
-            var disco = await GetDiscoveryDocument();
-            var registration = await RegisterClientForHybrid(disco.RegistrationEndpoint, "http://localhost:7890");
+            Authority = _runnerOptions.DiscoveryUrl,
+            RedirectUri = _runnerOptions.RedirectUri.AbsoluteUri,
+            ClientId = clientId,
+            ClientSecret = clientSecret,
+            Scope = _runnerOptions.Scope,
+            TokenClientCredentialStyle = ClientCredentialStyle.AuthorizationHeader,
+            Browser = new SystemBrowser(_runnerOptions.RedirectUri),
+            FilterClaims = false,
+            LoggerFactory = loggerFactory,
+            IdentityTokenValidator = new JwtHandlerIdentityTokenValidator()
+        };
+    }
 
-            var serilog = new LoggerConfiguration()
-                .MinimumLevel.Error()
-                .Enrich.FromLogContext()
-                .WriteTo.LiterateConsole(outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message}{NewLine}{Exception}{NewLine}")
-                .CreateLogger();
-
-            var options = new OidcClientOptions
-            {
-                Authority = disco.Issuer,
-                RedirectUri = "http://localhost:7890",
-                ClientId = registration.ClientId,
-                ClientSecret = registration.ClientSecret,
-                TokenClientCredentialStyle = ClientCredentialStyle.AuthorizationHeader,
-                Browser = new SystemBrowser(port: 7890),
-                FilterClaims = false
-            };
-
-            options.LoggerFactory.AddSerilog(serilog);
-
-            options.Policy.RequireAccessTokenHash = false;
-            options.Policy.Discovery.ValidateEndpoints = false;
-
-            return options;
-        }
-
-        public async Task<DiscoveryDocumentResponse> GetDiscoveryDocument()
+    public static void ShowResult(LoginResult result)
+    {
+        if (result.IsError)
         {
-            var discoUrl = string.Format(_discoEndpoint, RpId, TestName);
-
-            var client = new HttpClient();
-            var disco = await client.GetDiscoveryDocumentAsync(new DiscoveryDocumentRequest
-            {
-                Address = discoUrl,
-                Policy =
-                {
-                    ValidateEndpoints = false
-                }
-            });
-
-            if (disco.IsError) throw new Exception(disco.Error);
-
-            return disco;
+            Console.Error.WriteLine($"Conformance flow rejected: {result.Error}");
+            return;
         }
 
-        public async Task<DynamicClientRegistrationResponse> RegisterClientForCode(string address, string redirectUri)
+        Console.WriteLine("Conformance flow completed successfully.");
+        foreach (var claim in result.User.Claims)
         {
-            var client = new HttpClient();
-
-            var document = new DynamicClientRegistrationDocument
-            {
-                RedirectUris = { redirectUri },
-                ApplicationType = "native"
-            };
-
-            var response = await client.RegisterClientAsync(new DynamicClientRegistrationRequest
-            {
-                Address = address,
-                Document = document
-            });
-
-            if (response.IsError) throw new Exception(response.ErrorDescription);
-
-            return response;
+            Console.WriteLine($"claim {claim.Type}: {claim.Value}");
         }
 
-        public async Task<DynamicClientRegistrationResponse> RegisterClientForHybrid(string address, string redirectUri)
+        Console.WriteLine($"identity_token present: {!string.IsNullOrWhiteSpace(result.IdentityToken)}");
+        Console.WriteLine($"access_token present: {!string.IsNullOrWhiteSpace(result.AccessToken)}");
+        Console.WriteLine($"refresh_token present: {!string.IsNullOrWhiteSpace(result.RefreshToken)}");
+    }
+
+    private async Task<DynamicClientRegistrationResponse> RegisterClientAsync(
+        HttpClient httpClient,
+        string registrationEndpoint,
+        CancellationToken cancellationToken)
+    {
+        var document = new DynamicClientRegistrationDocument
         {
-            var client = new HttpClient();
+            ApplicationType = "native",
+            TokenEndpointAuthenticationMethod = OidcConstants.EndpointAuthenticationMethods.BasicAuthentication
+        };
+        document.RedirectUris.Add(_runnerOptions.RedirectUri);
+        document.ResponseTypes.Add(OidcConstants.ResponseTypes.Code);
+        document.GrantTypes.Add(OidcConstants.GrantTypes.AuthorizationCode);
 
-            var document = new DynamicClientRegistrationDocument
-            {
-                RedirectUris = { redirectUri },
-                ApplicationType = "native",
-                ResponseTypes = { "code id_token" },
-                GrantTypes = { "authorization_code", "implicit" }
-            };
+        var registration = await httpClient.RegisterClientAsync(new DynamicClientRegistrationRequest
+        {
+            Address = registrationEndpoint,
+            Document = document
+        }, cancellationToken);
 
-            var response = await client.RegisterClientAsync(new DynamicClientRegistrationRequest
-            {
-                Address = address,
-                Document = document
-            });
-
-            if (response.IsError) throw new Exception(response.ErrorDescription);
-
-            return response;
+        if (registration.IsError)
+        {
+            throw new InvalidOperationException($"Dynamic client registration failed: {registration.ErrorDescription ?? registration.Error}");
         }
+
+        return registration;
     }
 }

@@ -1,14 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <PackageId>IdentityModel.OidcClient.IdentityTokenValidator</PackageId>
+        <PackageId>ZinfoFramework.IdentityModel.OidcClient.IdentityTokenValidator</PackageId>
+        <Version>10.0.0</Version>
+        <MinVerVersionOverride>10.0.0</MinVerVersionOverride>
         <RootNamespace>IdentityModel.OidcClient</RootNamespace>
         <AssemblyName>IdentityModel.OidcClient.IdentityTokenValidator</AssemblyName>
         
-        <TargetFramework>netstandard2.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
     
-        <PackageTags>OAuth2;OAuth 2.0;OpenID Connect;Security;Identity;IdentityServer</PackageTags>
-        <Description>Identity token validator for IdentityModeo.OidcClient based on the Microsoft JWT handler</Description>
-        <Authors>Dominick Baier;Brock Allen</Authors>
+        <PackageTags>ZinfoFramework;OAuth2;OAuth 2.0;OpenID Connect;Security;Identity;ID Token;JWT</PackageTags>
+        <Description>ZinfoFramework's independently maintained ID token validator for the IdentityModel.OidcClient API, based on the Microsoft JWT handler.</Description>
+        <PackageReleaseNotes>Independent ZinfoFramework continuation targeting .NET 10 while preserving the historical IdentityModel.OidcClient.IdentityTokenValidator API and assembly.</PackageReleaseNotes>
+        <Authors>Luiz Antonio</Authors>
+        <Copyright>Copyright Dominick Baier &amp; Brock Allen</Copyright>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/Luizinfo/IdentityModel.OidcClient.git</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/Luizinfo/IdentityModel.OidcClient</PackageProjectUrl>
         <PackageIcon>icon.jpg</PackageIcon>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -24,7 +31,7 @@
         <DebugType>embedded</DebugType>
 
         <!-- Enable Trimming Warnings to allow consumers to publish as trimmed -->
-        <IsTrimmable Condition="'$(TargetFramework)' == 'net6.0'">true</IsTrimmable>
+        <IsTrimmable>true</IsTrimmable>
 
         <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">True</ContinuousIntegrationBuild>
         
@@ -36,14 +43,17 @@
     <ItemGroup>
         <None Include="../../icon.jpg" Pack="true" Visible="false" PackagePath="" />
         <None Include="README.md" Pack="true" PackagePath=""/>
+        <None Include="../../LICENSE" Pack="true" PackagePath="" />
+        <None Include="../../NOTICE.md" Pack="true" PackagePath="" />
+        <None Include="../../CHANGELOG.md" Pack="true" PackagePath="" />
     </ItemGroup>
     
     <ItemGroup>
-        <PackageReference Include="minver" Version="4.3.0" PrivateAssets="All" />
+        <PackageReference Include="minver" Version="5.0.0" PrivateAssets="All" />
 
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     </ItemGroup>
     
     <ItemGroup>

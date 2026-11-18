@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using FluentAssertions;
@@ -57,6 +57,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"),
                 new Claim("auth_time", "123"));
@@ -122,6 +123,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -249,6 +251,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://{some_multi_tenant_name}", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -279,6 +282,7 @@ namespace IdentityModel.OidcClient.Tests
 
             var url = $"?state={state.State}&code=bar";
             var idToken = Crypto.CreateJwt(null, "https://authority", "client",
+                new Claim("nonce", state.Nonce),
                 new Claim("at_hash", Crypto.HashData("token")),
                 new Claim("sub", "123"));
 
@@ -335,7 +339,7 @@ namespace IdentityModel.OidcClient.Tests
                 new NetworkHandler(JsonSerializer.Serialize(tokenResponse), HttpStatusCode.OK);
 
             Func<Task> act = async () => { await client.ProcessResponseAsync(url, state); };
-            act.Should().Throw<InvalidOperationException>()
+            (await act.Should().ThrowAsync<InvalidOperationException>())
                 .Where(e => e.Message.StartsWith("No IIdentityTokenValidator is configured"));
         }
 
@@ -510,12 +514,14 @@ namespace IdentityModel.OidcClient.Tests
             // Validate that the resulting PAR state is correct
             var startUrl = new Uri(state.StartUrl);
             var startUrlQueryParams = HttpUtility.ParseQueryString(startUrl.Query);
-            startUrlQueryParams.Should().HaveCount(2);
+            startUrlQueryParams.Count.Should().Be(2);
             startUrlQueryParams.GetValues("client_id").Single().Should().Be("client");
             startUrlQueryParams.GetValues("request_uri").Single().Should().Be(requestUri);
 
             // Validate that the client authentication during the PAR request was correct
             var request = backChannelHandler.Request;
+            var requestParameters = HttpUtility.ParseQueryString(await request.Content.ReadAsStringAsync());
+            requestParameters.GetValues("nonce").Single().Should().Be(state.Nonce);
             request.Headers.Authorization.Should().NotBeNull();
             request.Headers.Authorization.Scheme.Should().Be("Basic");
             request.Headers.Authorization.Parameter.Should()
@@ -551,7 +557,7 @@ namespace IdentityModel.OidcClient.Tests
             // Validate that the resulting PAR state is correct
             var startUrl = new Uri(state.StartUrl);
             var startUrlQueryParams = HttpUtility.ParseQueryString(startUrl.Query);
-            startUrlQueryParams.Should().HaveCount(2);
+            startUrlQueryParams.Count.Should().Be(2);
             startUrlQueryParams.GetValues("client_id").Single().Should().Be("client");
             startUrlQueryParams.GetValues("request_uri").Single().Should().Be(requestUri);
 

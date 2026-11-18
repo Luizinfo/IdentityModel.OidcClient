@@ -1,10 +1,11 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using IdentityModel.OidcClient.Browser;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Diagnostics;
 using System.Net;
@@ -104,7 +105,7 @@ namespace ConsoleClientWithBrowserAndDPoP
     {
         const int DefaultTimeout = 60 * 5; // 5 mins (in seconds)
 
-        IWebHost _host;
+        IHost _host;
         TaskCompletionSource<string> _source = new TaskCompletionSource<string>();
         string _url;
 
@@ -117,21 +118,19 @@ namespace ConsoleClientWithBrowserAndDPoP
 
             _url = $"http://127.0.0.1:{port}/{path}";
 
-            _host = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls(_url)
-                .Configure(Configure)
+            _host = new HostBuilder()
+                .ConfigureWebHost(builder => builder
+                    .UseKestrel()
+                    .UseUrls(_url)
+                    .Configure(Configure))
                 .Build();
             _host.Start();
         }
 
         public void Dispose()
         {
-            Task.Run(async () =>
-            {
-                await Task.Delay(500);
-                _host.Dispose();
-            });
+            _host.StopAsync().GetAwaiter().GetResult();
+            _host.Dispose();
         }
 
         void Configure(IApplicationBuilder app)

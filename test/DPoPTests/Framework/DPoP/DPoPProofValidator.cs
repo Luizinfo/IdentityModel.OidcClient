@@ -92,7 +92,7 @@ public class DPoPProofValidator
         {
             if (result.IsError)
             {
-                result.Error = OidcConstants.TokenErrors.InvalidDPoPProof;
+                result.Error ??= OidcConstants.TokenErrors.InvalidDPoPProof;
             }
         }
 
@@ -216,21 +216,23 @@ public class DPoPProofValidator
     /// </summary>
     protected virtual async Task ValidatePayloadAsync(DPoPProofValidatonContext context, DPoPProofValidatonResult result)
     {
-        if (result.Payload.TryGetValue(JwtClaimTypes.DPoPAccessTokenHash, out var ath))
+        if (!string.IsNullOrWhiteSpace(context.AccessToken) &&
+            result.Payload.TryGetValue(JwtClaimTypes.DPoPAccessTokenHash, out var ath))
         {
             result.AccessTokenHash = ath as string;
         }
 
-        if (String.IsNullOrEmpty(result.AccessTokenHash))
+        if (!string.IsNullOrWhiteSpace(context.AccessToken) && String.IsNullOrEmpty(result.AccessTokenHash))
         {
             result.IsError = true;
             result.ErrorDescription = "Invalid 'ath' value.";
             return;
         }
 
-        using (var sha = SHA256.Create())
+        if (!string.IsNullOrWhiteSpace(context.AccessToken))
         {
-            var bytes = Encoding.UTF8.GetBytes(context.AccessToken);
+            using var sha = SHA256.Create();
+            var bytes = Encoding.ASCII.GetBytes(context.AccessToken);
             var hash = sha.ComputeHash(bytes);
 
             var accessTokenHash = Base64Url.Encode(hash);
@@ -324,7 +326,7 @@ public class DPoPProofValidator
 
         // get largest skew based on how client's freshness is validated
         var validateIat = dpopOptions.ValidateIat;
-        var validateNonce = dpopOptions.ValidateNonce;
+        var validateNonce = context.ValidateNonce ?? dpopOptions.ValidateNonce;
         var skew = TimeSpan.Zero;
         if (validateIat && dpopOptions.ClientClockSkew > skew)
         {
@@ -359,7 +361,7 @@ public class DPoPProofValidator
             }
         }
 
-        var validateNonce = dpopOptions.ValidateNonce;
+        var validateNonce = context.ValidateNonce ?? dpopOptions.ValidateNonce;
         if (validateNonce)
         {
             await ValidateNonceAsync(context, result);

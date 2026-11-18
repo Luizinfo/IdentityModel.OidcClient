@@ -1,4 +1,4 @@
-﻿// Copyright (c) Duende Software. All rights reserved.
+// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using IdentityModel.Client;
@@ -145,6 +145,15 @@ namespace IdentityModel.OidcClient
                 if (validationResult.IsError)
                 {
                     return new TokenResponseValidationResult(validationResult.Error ?? "Identity token validation error");
+                }
+
+                if (state?.Nonce.IsPresent() == true)
+                {
+                    var nonce = validationResult.User.FindFirst(JwtClaimTypes.Nonce)?.Value;
+                    if (!string.Equals(state.Nonce, nonce, StringComparison.Ordinal))
+                    {
+                        return new TokenResponseValidationResult("Invalid nonce.");
+                    }
                 }
 
                 // validate at_hash
